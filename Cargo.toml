@@ -1,0 +1,10 @@
+[package]
+name = "matrix"
+version = "0.1.0"
+authors = ["F5XS <f5xs.0000a@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+ocl = "*"
+itertools = "*"
+lazy_static = "*"
