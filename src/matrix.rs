@@ -1,13 +1,23 @@
-use ocl::Buffer;
-use core::cmp::min;
-use core::cmp::max;
-use crate::utils::bool32;
-use ocl::prm::Uint4;
-use ocl::ProQue;
-use crate::utils::ForceTruncOrZeroRepeatIter;
-use core::iter::repeat;
-use core::iter::repeat_with;
+use crate::utils::{
+    bool32,
+    ForceTruncOrZeroRepeatIter,
+};
+use core::{
+    cmp::{
+        max,
+        min,
+    },
+    iter::{
+        repeat,
+        repeat_with,
+    },
+};
 use itertools::Itertools as _;
+use ocl::{
+    prm::Uint4,
+    Buffer,
+    ProQue,
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -39,11 +49,7 @@ lazy_static! {
         let src = include_str!("opencl.cl");
 
         println!("Building OpenCL file...");
-        let proque = ProQue::builder()
-            .src(src)
-            .dims(65536)
-            .build()
-            .unwrap();
+        let proque = ProQue::builder().src(src).dims(65536).build().unwrap();
         println!("OpenCL file built.");
 
         proque
@@ -63,6 +69,28 @@ pub struct Matrixf32 {
 }
 
 impl Matrixf32 {
+    pub fn take(self) -> ([u32; 4], Buffer<f32>) {
+        (self.xyzw, self.matrix)
+    }
+
+    pub unsafe fn from_raw_parts(
+        dimensions: [u32; 4],
+        buffer: Buffer<f32>,
+    ) -> Matrixf32
+    {
+        let meta = Uint4::new(
+            dimensions[0],
+            dimensions[1],
+            dimensions[2],
+            dimensions[3],
+        );
+        Matrixf32 {
+            xyzw: dimensions,
+            matrix: buffer,
+            meta,
+        }
+    }
+
     pub fn dimensions<'a>(&'a self) -> &'a [u32; 4] {
         &self.xyzw
     }
@@ -75,7 +103,8 @@ impl Matrixf32 {
         let mut storage = vec![0.; self.area() as usize];
         self.matrix.read(&mut storage).enq().unwrap();
 
-        storage.into_iter()
+        storage
+            .into_iter()
             .scan([0, 0, 0, 0], |coords, val| {
                 let retval = (val, coords.clone());
 
@@ -108,7 +137,8 @@ impl Matrixf32 {
             .take(area_as_usize)
             .collect::<Vec<_>>();
 
-        let buffer = PROQUE.buffer_builder::<f32>()
+        let buffer = PROQUE
+            .buffer_builder::<f32>()
             .len(area_as_usize)
             .copy_host_slice(&*temp)
             .build()
@@ -126,9 +156,11 @@ impl Matrixf32 {
     pub fn new_fill(
         dims: [u32; 4],
         val: f32,
-    ) -> Matrixf32{
+    ) -> Matrixf32
+    {
         let area_as_usize = area(&dims) as usize;
-        let buffer = PROQUE.buffer_builder::<f32>()
+        let buffer = PROQUE
+            .buffer_builder::<f32>()
             .len(area_as_usize)
             .fill_val(val)
             .build()
@@ -147,14 +179,17 @@ impl Matrixf32 {
         let dest = Matrixf32::new(self.xyzw.clone(), repeat(0.));
         let area = self.area();
 
-        let kernel = PROQUE.kernel_builder("copy")
+        let kernel = PROQUE
+            .kernel_builder("copy")
             .arg(&self.matrix)
             .arg(area)
             .arg(&dest.matrix)
             .build()
             .unwrap();
 
-        unsafe { kernel.enq().unwrap(); }
+        unsafe {
+            kernel.enq().unwrap();
+        }
 
         dest
     }
@@ -183,8 +218,13 @@ impl Matrixf32 {
         Matrixf32::new(dims, iter_gen)
     }
 
-    pub fn add_eq(self, other: &Matrixf32) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("add_eq")
+    pub fn add_eq(
+        self,
+        other: &Matrixf32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("add_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -197,8 +237,13 @@ impl Matrixf32 {
         self
     }
 
-    pub fn mul_eq(self, other: &Matrixf32) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("mul_eq")
+    pub fn mul_eq(
+        self,
+        other: &Matrixf32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("mul_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -211,8 +256,13 @@ impl Matrixf32 {
         self
     }
 
-    pub fn sub_eq(self, other: &Matrixf32) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("sub_eq")
+    pub fn sub_eq(
+        self,
+        other: &Matrixf32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("sub_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -225,8 +275,13 @@ impl Matrixf32 {
         self
     }
 
-    pub fn div_eq(self, other: &Matrixf32) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("div_eq")
+    pub fn div_eq(
+        self,
+        other: &Matrixf32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("div_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -239,9 +294,14 @@ impl Matrixf32 {
         self
     }
 
-    pub fn matrix_mul_add_eq(self, left: &Matrixf32, right: &Matrixf32)
-    -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("matrix_mul_add_eq")
+    pub fn matrix_mul_add_eq(
+        self,
+        left: &Matrixf32,
+        right: &Matrixf32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("matrix_mul_add_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&left.matrix)
@@ -258,54 +318,61 @@ impl Matrixf32 {
 
     pub fn sub_scalar_eq(
         self,
-        val: f32
-    ) -> Matrixf32 {
+        val: f32,
+    ) -> Matrixf32
+    {
         // because of time constraints, we'll have to compromise for a bit.
         // we can optimize this, however. we just don't for now and settle for
         // less
-        
+
         let dims = self.dimensions().clone();
         self.sub_eq(&Matrixf32::new_fill(dims, val))
     }
 
     pub fn mul_scalar_eq(
         self,
-        val: f32
-    ) -> Matrixf32 {
+        val: f32,
+    ) -> Matrixf32
+    {
         // because of time constraints, we'll have to compromise for a bit.
         // we can optimize this, however. we just don't for now and settle for
         // less
-        
+
         let dims = self.dimensions().clone();
         self.mul_eq(&Matrixf32::new_fill(dims, val))
     }
 
     pub fn add_scalar_eq(
         self,
-        val: f32
-    ) -> Matrixf32 {
+        val: f32,
+    ) -> Matrixf32
+    {
         // because of time constraints, we'll have to compromise for a bit.
         // we can optimize this, however. we just don't for now and settle for
         // less
-        
+
         let dims = self.dimensions().clone();
         self.add_eq(&Matrixf32::new_fill(dims, val))
     }
 
     pub fn div_scalar_eq(
         self,
-        val: f32
-    ) -> Matrixf32 {
+        val: f32,
+    ) -> Matrixf32
+    {
         // because of time constraints, we'll have to compromise for a bit.
         // we can optimize this, however. we just don't for now and settle for
         // less
-        
+
         let dims = self.dimensions().clone();
         self.div_eq(&Matrixf32::new_fill(dims, val))
     }
 
-    pub fn matrix_mul(&self, right: &Matrixf32)
-    -> Matrixf32 {
+    pub fn matrix_mul(
+        &self,
+        right: &Matrixf32,
+    ) -> Matrixf32
+    {
         let zero = Matrixf32::zero([
             right.dimensions()[0],
             self.dimensions()[1],
@@ -317,7 +384,8 @@ impl Matrixf32 {
     }
 
     pub fn exp_eq(self) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("exp_eq")
+        let kernel = PROQUE
+            .kernel_builder("exp_eq")
             .arg(&self.matrix)
             .arg(self.area())
             .build()
@@ -328,8 +396,13 @@ impl Matrixf32 {
         self
     }
 
-    pub fn powf_scalar_eq(self, power: f32) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("powf_eq")
+    pub fn powf_scalar_eq(
+        self,
+        power: f32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("powf_eq")
             .arg(&self.matrix)
             .arg(self.area())
             .arg(power)
@@ -341,8 +414,13 @@ impl Matrixf32 {
         self
     }
 
-    pub fn powi_scalar_eq(self, power: i32) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("powi_eq")
+    pub fn powi_scalar_eq(
+        self,
+        power: i32,
+    ) -> Matrixf32
+    {
+        let kernel = PROQUE
+            .kernel_builder("powi_eq")
             .arg(&self.matrix)
             .arg(self.area())
             .arg(power)
@@ -355,7 +433,8 @@ impl Matrixf32 {
     }
 
     pub fn sigmoid_eq(self) -> Matrixf32 {
-        let kernel = PROQUE.kernel_builder("sigmoid_eq")
+        let kernel = PROQUE
+            .kernel_builder("sigmoid_eq")
             .arg(&self.matrix)
             .arg(self.area())
             .build()
@@ -366,7 +445,12 @@ impl Matrixf32 {
         self
     }
 
-    pub fn flatten(&self, extend: Dimension, flatten: Dimension) -> Matrixf32 {
+    pub fn flatten(
+        &self,
+        extend: Dimension,
+        flatten: Dimension,
+    ) -> Matrixf32
+    {
         let mut new_dims = self.xyzw.clone();
         new_dims[extend.to_index() as usize] *=
             new_dims[flatten.to_index() as usize];
@@ -374,7 +458,8 @@ impl Matrixf32 {
 
         let result = Matrixf32::zero(new_dims);
 
-        let kernel = PROQUE.kernel_builder("flatten")
+        let kernel = PROQUE
+            .kernel_builder("flatten")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&result.matrix)
@@ -388,7 +473,12 @@ impl Matrixf32 {
         result
     }
 
-    pub fn extend(&self, other: &Matrixf32, direction :Dimension) -> Matrixf32 {
+    pub fn extend(
+        &self,
+        other: &Matrixf32,
+        direction: Dimension,
+    ) -> Matrixf32
+    {
         let dim_index = direction.to_index() as usize;
         let mut result_dims = [
             max(self.xyzw[0], other.xyzw[0]),
@@ -396,12 +486,12 @@ impl Matrixf32 {
             max(self.xyzw[2], other.xyzw[2]),
             max(self.xyzw[3], other.xyzw[3]),
         ];
-        result_dims[dim_index] =
-            self.xyzw[dim_index] + other.xyzw[dim_index];
+        result_dims[dim_index] = self.xyzw[dim_index] + other.xyzw[dim_index];
 
         let result = Matrixf32::zero(result_dims);
 
-        let kernel = PROQUE.kernel_builder("extend")
+        let kernel = PROQUE
+            .kernel_builder("extend")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -420,9 +510,11 @@ impl Matrixf32 {
     fn retain_indices_inner(
         &self,
         indices: [Vec<u32>; 4],
-    ) -> Matrixf32 {
+    ) -> Matrixf32
+    {
         fn vec_to_buffer(vec: &[u32]) -> Buffer<u32> {
-            PROQUE.buffer_builder::<u32>()
+            PROQUE
+                .buffer_builder::<u32>()
                 .len(vec.len())
                 .copy_host_slice(vec)
                 .build()
@@ -441,7 +533,8 @@ impl Matrixf32 {
             indices[3].len() as u32,
         ]);
 
-        let kernel = PROQUE.kernel_builder("retain_indices")
+        let kernel = PROQUE
+            .kernel_builder("retain_indices")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&x_buffer)
@@ -474,7 +567,8 @@ impl Matrixf32 {
     pub fn retain_indices(
         &self,
         mut xyzw: [Option<Vec<u32>>; 4],
-    ) -> Matrixf32 {
+    ) -> Matrixf32
+    {
         let mut retain_indices = <[Vec<u32>; 4]>::default();
 
         for idx in 0 .. 4 {
@@ -545,7 +639,8 @@ impl Matrixf32 {
 
         let result = Matrixf32::zero(result_dims);
 
-        let kernel = PROQUE.kernel_builder("transpose")
+        let kernel = PROQUE
+            .kernel_builder("transpose")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&result.matrix)
@@ -559,7 +654,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn gt_matrix(&self, other: &Self) -> MatrixBool {
+    pub fn gt_matrix(
+        &self,
+        other: &Self,
+    ) -> MatrixBool
+    {
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -569,7 +668,8 @@ impl Matrixf32 {
 
         let result = MatrixBool::f(result_dims);
 
-        let kernel = PROQUE.kernel_builder("f32_gt")
+        let kernel = PROQUE
+            .kernel_builder("f32_gt")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -583,7 +683,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn ge_matrix(&self, other: &Self) -> MatrixBool {
+    pub fn ge_matrix(
+        &self,
+        other: &Self,
+    ) -> MatrixBool
+    {
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -593,7 +697,8 @@ impl Matrixf32 {
 
         let result = MatrixBool::f(result_dims);
 
-        let kernel = PROQUE.kernel_builder("f32_ge")
+        let kernel = PROQUE
+            .kernel_builder("f32_ge")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -607,7 +712,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn lt_matrix(&self, other: &Self) -> MatrixBool {
+    pub fn lt_matrix(
+        &self,
+        other: &Self,
+    ) -> MatrixBool
+    {
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -617,7 +726,8 @@ impl Matrixf32 {
 
         let result = MatrixBool::f(result_dims);
 
-        let kernel = PROQUE.kernel_builder("f32_lt")
+        let kernel = PROQUE
+            .kernel_builder("f32_lt")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -631,7 +741,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn le_matrix(&self, other: &Self) -> MatrixBool {
+    pub fn le_matrix(
+        &self,
+        other: &Self,
+    ) -> MatrixBool
+    {
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -641,7 +755,8 @@ impl Matrixf32 {
 
         let result = MatrixBool::f(result_dims);
 
-        let kernel = PROQUE.kernel_builder("f32_le")
+        let kernel = PROQUE
+            .kernel_builder("f32_le")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -655,7 +770,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn eq_matrix(&self, other: &Self) -> MatrixBool {
+    pub fn eq_matrix(
+        &self,
+        other: &Self,
+    ) -> MatrixBool
+    {
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -665,7 +784,8 @@ impl Matrixf32 {
 
         let result = MatrixBool::f(result_dims);
 
-        let kernel = PROQUE.kernel_builder("f32_eq")
+        let kernel = PROQUE
+            .kernel_builder("f32_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -679,7 +799,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn ne_matrix(&self, other: &Self) -> MatrixBool {
+    pub fn ne_matrix(
+        &self,
+        other: &Self,
+    ) -> MatrixBool
+    {
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -689,7 +813,8 @@ impl Matrixf32 {
 
         let result = MatrixBool::f(result_dims);
 
-        let kernel = PROQUE.kernel_builder("f32_ne")
+        let kernel = PROQUE
+            .kernel_builder("f32_ne")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -706,7 +831,8 @@ impl Matrixf32 {
     pub fn is_nan(&self) -> MatrixBool {
         let result = MatrixBool::f(self.dimensions().clone());
 
-        let kernel = PROQUE.kernel_builder("is_nan")
+        let kernel = PROQUE
+            .kernel_builder("is_nan")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&result.matrix)
@@ -718,7 +844,12 @@ impl Matrixf32 {
         result
     }
 
-    pub fn if_else(&self, cond: &MatrixBool, other: &Matrixf32) -> Matrixf32 {
+    pub fn if_else(
+        &self,
+        cond: &MatrixBool,
+        other: &Matrixf32,
+    ) -> Matrixf32
+    {
         let result_dims = [
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[0]),
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[1]),
@@ -727,7 +858,8 @@ impl Matrixf32 {
         ];
         let result = Matrixf32::zero(result_dims);
 
-        let kernel = PROQUE.kernel_builder("if_else_eq")
+        let kernel = PROQUE
+            .kernel_builder("if_else_eq")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&other.matrix)
@@ -743,7 +875,11 @@ impl Matrixf32 {
         result
     }
 
-    pub fn sum_along(&self, dimensions: [bool; 4]) -> Matrixf32 {
+    pub fn sum_along(
+        &self,
+        dimensions: [bool; 4],
+    ) -> Matrixf32
+    {
         // copy the contents of the buffer
         let mut last_vec =
             self.read().iter().map(|(val, _)| val).cloned().collect::<Vec<_>>();
@@ -832,13 +968,15 @@ impl Matrixf32 {
             },
         );
 
-        let buffer = PROQUE.buffer_builder::<f32>()
+        let buffer = PROQUE
+            .buffer_builder::<f32>()
             .len(last_vec.len())
             .copy_host_slice(&*last_vec)
             .build()
             .unwrap();
 
-        let meta = Uint4::new(new_dims[0], new_dims[1], new_dims[2], new_dims[3]);
+        let meta =
+            Uint4::new(new_dims[0], new_dims[1], new_dims[2], new_dims[3]);
 
         Matrixf32 {
             xyzw: new_dims,
@@ -954,7 +1092,8 @@ impl MatrixBool {
         let mut storage = vec![bool32::f(); self.area() as usize];
         self.matrix.read(&mut storage).enq().unwrap();
 
-        storage.into_iter()
+        storage
+            .into_iter()
             .scan([0, 0, 0, 0], |coords, val| {
                 let retval = (val.into(), coords.clone());
 
@@ -987,7 +1126,8 @@ impl MatrixBool {
             .take(area_as_usize)
             .collect::<Vec<_>>();
 
-        let buffer = PROQUE.buffer_builder::<bool32>()
+        let buffer = PROQUE
+            .buffer_builder::<bool32>()
             .len(area_as_usize)
             .copy_host_slice(&*temp)
             .build()
@@ -1005,9 +1145,11 @@ impl MatrixBool {
     pub fn new_fill(
         dims: [u32; 4],
         val: bool,
-    ) -> MatrixBool {
+    ) -> MatrixBool
+    {
         let area_as_usize = area(&dims) as usize;
-        let buffer = PROQUE.buffer_builder::<bool32>()
+        let buffer = PROQUE
+            .buffer_builder::<bool32>()
             .len(area_as_usize)
             .fill_val(bool32::from(val))
             .build()

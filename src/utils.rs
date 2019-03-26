@@ -44,7 +44,6 @@ impl From<bool> for bool32 {
         if b {
             bool32::t()
         }
-
         else {
             bool32::f()
         }
@@ -105,4 +104,3 @@ where
         self.count
     }
 }
-
