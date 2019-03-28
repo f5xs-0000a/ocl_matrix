@@ -89,6 +89,12 @@ impl Matrixf32 {
             matrix: buffer,
             meta,
         }
+    } 
+
+    pub unsafe fn get_buffer(
+        &self
+    ) -> &Buffer<f32> {
+        &self.matrix
     }
 
     pub fn dimensions<'a>(&'a self) -> &'a [u32; 4] {
