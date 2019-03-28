@@ -30,7 +30,7 @@ pub enum Dimension {
 }
 
 impl Dimension {
-    fn to_index(self) -> u32 {
+    pub fn to_index(self) -> u32 {
         use self::Dimension::*;
 
         match self {
@@ -38,6 +38,42 @@ impl Dimension {
             Y => 1,
             Z => 2,
             W => 3,
+        }
+    }
+
+    pub fn is_x(&self) -> bool {
+        use self::Dimension::*;
+
+        match self {
+            X => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_y(&self) -> bool {
+        use self::Dimension::*;
+
+        match self {
+            Y => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_z(&self) -> bool {
+        use self::Dimension::*;
+
+        match self {
+            Z => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_w(&self) -> bool {
+        use self::Dimension::*;
+
+        match self {
+            W => true,
+            _ => false,
         }
     }
 }
@@ -198,10 +234,6 @@ impl Matrixf32 {
         }
 
         dest
-    }
-
-    pub fn zero(dims: [u32; 4]) -> Matrixf32 {
-        Matrixf32::new(dims, repeat(0.))
     }
 
     pub fn identity(dims: [u32; 3]) -> Matrixf32 {
@@ -379,12 +411,15 @@ impl Matrixf32 {
         right: &Matrixf32,
     ) -> Matrixf32
     {
-        let zero = Matrixf32::zero([
-            right.dimensions()[0],
-            self.dimensions()[1],
-            min(self.dimensions()[2], right.dimensions()[2]),
-            min(self.dimensions()[3], right.dimensions()[3]),
-        ]);
+        let zero = Matrixf32::new_fill(
+            [
+                right.dimensions()[0],
+                self.dimensions()[1],
+                min(self.dimensions()[2], right.dimensions()[2]),
+                min(self.dimensions()[3], right.dimensions()[3]),
+            ],
+            0.
+        );
 
         zero.matrix_mul_add_eq(self, right)
     }
@@ -462,7 +497,7 @@ impl Matrixf32 {
             new_dims[flatten.to_index() as usize];
         new_dims[flatten.to_index() as usize] = 1;
 
-        let result = Matrixf32::zero(new_dims);
+        let result = Matrixf32::new_fill(new_dims, 0.);
 
         let kernel = PROQUE
             .kernel_builder("flatten")
@@ -494,7 +529,7 @@ impl Matrixf32 {
         ];
         result_dims[dim_index] = self.xyzw[dim_index] + other.xyzw[dim_index];
 
-        let result = Matrixf32::zero(result_dims);
+        let result = Matrixf32::new_fill(result_dims, 0.);
 
         let kernel = PROQUE
             .kernel_builder("extend")
@@ -532,12 +567,15 @@ impl Matrixf32 {
         let z_buffer = vec_to_buffer(&indices[2]);
         let w_buffer = vec_to_buffer(&indices[3]);
 
-        let dest = Matrixf32::zero([
-            indices[0].len() as u32,
-            indices[1].len() as u32,
-            indices[2].len() as u32,
-            indices[3].len() as u32,
-        ]);
+        let dest = Matrixf32::new_fill(
+            [
+                indices[0].len() as u32,
+                indices[1].len() as u32,
+                indices[2].len() as u32,
+                indices[3].len() as u32,
+            ],
+            0.
+        );
 
         let kernel = PROQUE
             .kernel_builder("retain_indices")
@@ -643,7 +681,7 @@ impl Matrixf32 {
         let mut result_dims = self.xyzw.clone();
         result_dims.swap(dim1.to_index() as usize, dim2.to_index() as usize);
 
-        let result = Matrixf32::zero(result_dims);
+        let result = Matrixf32::new_fill(result_dims, 0.);
 
         let kernel = PROQUE
             .kernel_builder("transpose")
@@ -862,7 +900,7 @@ impl Matrixf32 {
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[2]),
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[3]),
         ];
-        let result = Matrixf32::zero(result_dims);
+        let result = Matrixf32::new_fill(result_dims, 0.);
 
         let kernel = PROQUE
             .kernel_builder("if_else_eq")
@@ -884,111 +922,65 @@ impl Matrixf32 {
     pub fn sum_along(
         &self,
         dimensions: [bool; 4],
-    ) -> Matrixf32
-    {
-        // copy the contents of the buffer
-        let mut last_vec =
-            self.read().iter().map(|(val, _)| val).cloned().collect::<Vec<_>>();
-        let mut new_dims = self.xyzw.clone();
+    ) -> Matrixf32 {
+        use self::Dimension as D;
 
-        fn get_area(dims: &[u32; 4]) -> u32 {
-            dims[0] * dims[1] * dims[2] * dims[3]
+        let real_dim_iter = dimensions.iter()
+            .zip([D::X, D::Y, D::Z, D::W].into_iter())
+            .filter_map(|(bul, dim)| if *bul { Some(dim) } else { None });
+
+        let mut working_matrix = self.copy();
+
+        for dim in real_dim_iter {
+            // transpose to x for a while
+            if dim.is_z() || dim.is_w() {
+                working_matrix = working_matrix.transpose(D::X, *dim);
+            }
+
+            // since y is the only one not affected, let y remain y
+            // all else makes x
+            let cur_dim = if dim.is_y() {
+                D::Y
+            } else {
+                D::X
+            };
+
+            // create the dimensions of the matrix which the current working
+            // matrix will multiply with.
+            // this will simulate an addition over a specific dimension
+            let one_dims = if cur_dim.is_x() {
+                [
+                    1,
+                    working_matrix.dimensions()[0],
+                    working_matrix.dimensions()[2],
+                    working_matrix.dimensions()[3],
+                ]
+            } else /* if cur_dim.is_y() */ {
+                [
+                    working_matrix.dimensions()[1],
+                    1,
+                    working_matrix.dimensions()[2],
+                    working_matrix.dimensions()[3],
+                ]
+            };
+
+            // create the matrix given the dimensions
+            let one_matrix = Matrixf32::new_fill(one_dims, 1.);
+
+            // multiply the matrix with the one_matrix
+            working_matrix = if dim.is_x() {
+                working_matrix.matrix_mul(&one_matrix)
+            } else /* if cur_dim.is_y() */ {
+                one_matrix.matrix_mul(&working_matrix)
+            };
+
+            // undo the transposition
+            if dim.is_z() || dim.is_w() {
+                working_matrix = working_matrix.transpose(D::X, *dim);
+            }
         }
 
-        fn get_index(
-            coords: [u32; 4],
-            dims: &[u32; 4],
-        ) -> usize
-        {
-            (coords[3] * dims[0] * dims[1] * dims[2]
-                + coords[2] * dims[0] * dims[1]
-                + coords[1] * dims[0]
-                + coords[0]) as usize
-        }
-
-        fn get_coords(
-            mut index: u32,
-            dims: &[u32; 4],
-        ) -> [u32; 4]
-        {
-            let mut result = [0; 4];
-
-            result[3] = index / (dims[0] * dims[1] * dims[2]);
-            index %= dims[0] * dims[1] * dims[2];
-
-            result[2] = index / (dims[0] * dims[1]);
-            index %= dims[0] * dims[1];
-
-            result[1] = index / dims[0];
-            index %= dims[0];
-
-            result[0] = index;
-
-            result
-        }
-
-        // iterate through each of the elements, summing up which of the
-        // dimensions that need to be summed up and replacing the last vec and
-        // new dims in the process
-        dimensions.iter().enumerate().filter(|(_, flag)| **flag).for_each(
-            |(side, _)| {
-                use core::cmp::min;
-
-                let count = new_dims[side].clone();
-                let old_dims = new_dims.clone();
-
-                // set the new dims to 1
-                new_dims[side] = min(new_dims[side], 1);
-
-                // determine the new n-area;
-                let new_length = get_area(&new_dims);
-
-                last_vec = (0 .. new_length)
-                    .map(|idx| {
-                        last_vec
-                            .iter()
-                            .cloned()
-                            .skip({
-                                // get the coords of an index using the area of
-                                // the destination
-                                let coords = get_coords(idx, &new_dims);
-
-                                // convert that coords to an index using the
-                                // area
-                                // of the source
-                                get_index(coords, &old_dims)
-                            })
-                            .step_by({
-                                let x_i = get_index([0; 4], &old_dims);
-                                let x_f = {
-                                    let mut f = [0; 4];
-                                    f[side] = 1;
-                                    get_index(f, &old_dims)
-                                };
-                                x_f - x_i
-                            })
-                            .take(count as usize)
-                            .sum::<f32>()
-                    })
-                    .collect();
-            },
-        );
-
-        let buffer = PROQUE
-            .buffer_builder::<f32>()
-            .len(last_vec.len())
-            .copy_host_slice(&*last_vec)
-            .build()
-            .unwrap();
-
-        let meta =
-            Uint4::new(new_dims[0], new_dims[1], new_dims[2], new_dims[3]);
-
-        Matrixf32 {
-            xyzw: new_dims,
-            matrix: buffer,
-            meta,
-        }
+        working_matrix
     }
 
     /*
@@ -1046,7 +1038,7 @@ impl Matrixf32 {
 
         let intermediate = PROQUE.buffer_builder::<f32>()
             .len(intermediate_area)
-            .fill_val(0.)
+            .new_fill(0.)
             .build()
             .unwrap();
 
