@@ -125,11 +125,9 @@ impl Matrixf32 {
             matrix: buffer,
             meta,
         }
-    } 
+    }
 
-    pub unsafe fn get_buffer(
-        &self
-    ) -> &Buffer<f32> {
+    pub unsafe fn get_buffer(&self) -> &Buffer<f32> {
         &self.matrix
     }
 
@@ -261,6 +259,8 @@ impl Matrixf32 {
         other: &Matrixf32,
     ) -> Matrixf32
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let kernel = PROQUE
             .kernel_builder("add_eq")
             .arg(&self.matrix)
@@ -280,6 +280,8 @@ impl Matrixf32 {
         other: &Matrixf32,
     ) -> Matrixf32
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let kernel = PROQUE
             .kernel_builder("mul_eq")
             .arg(&self.matrix)
@@ -299,6 +301,8 @@ impl Matrixf32 {
         other: &Matrixf32,
     ) -> Matrixf32
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let kernel = PROQUE
             .kernel_builder("sub_eq")
             .arg(&self.matrix)
@@ -318,6 +322,8 @@ impl Matrixf32 {
         other: &Matrixf32,
     ) -> Matrixf32
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let kernel = PROQUE
             .kernel_builder("div_eq")
             .arg(&self.matrix)
@@ -338,6 +344,18 @@ impl Matrixf32 {
         right: &Matrixf32,
     ) -> Matrixf32
     {
+        debug_assert_eq!(left.dimensions()[0], right.dimensions()[1]);
+        debug_assert_eq!(left.dimensions()[1], self.dimensions()[1]);
+        debug_assert_eq!(right.dimensions()[0], self.dimensions()[0]);
+        debug_assert!(
+            left.dimensions()[2] == right.dimensions()[2]
+                && left.dimensions()[2] == self.dimensions()[2]
+        );
+        debug_assert!(
+            left.dimensions()[3] == right.dimensions()[3]
+                && left.dimensions()[3] == self.dimensions()[3]
+        );
+
         let kernel = PROQUE
             .kernel_builder("matrix_mul_add_eq")
             .arg(&self.matrix)
@@ -352,6 +370,24 @@ impl Matrixf32 {
         unsafe { kernel.enq().unwrap() }
 
         self
+    }
+
+    pub fn matrix_mul(
+        &self,
+        right: &Matrixf32,
+    ) -> Matrixf32
+    {
+        let zero = Matrixf32::new_fill(
+            [
+                right.dimensions()[0],
+                self.dimensions()[1],
+                min(self.dimensions()[2], right.dimensions()[2]),
+                min(self.dimensions()[3], right.dimensions()[3]),
+            ],
+            0.,
+        );
+
+        zero.matrix_mul_add_eq(self, right)
     }
 
     pub fn sub_scalar_eq(
@@ -404,24 +440,6 @@ impl Matrixf32 {
 
         let dims = self.dimensions().clone();
         self.div_eq(&Matrixf32::new_fill(dims, val))
-    }
-
-    pub fn matrix_mul(
-        &self,
-        right: &Matrixf32,
-    ) -> Matrixf32
-    {
-        let zero = Matrixf32::new_fill(
-            [
-                right.dimensions()[0],
-                self.dimensions()[1],
-                min(self.dimensions()[2], right.dimensions()[2]),
-                min(self.dimensions()[3], right.dimensions()[3]),
-            ],
-            0.
-        );
-
-        zero.matrix_mul_add_eq(self, right)
     }
 
     pub fn exp_eq(self) -> Matrixf32 {
@@ -520,6 +538,39 @@ impl Matrixf32 {
         direction: Dimension,
     ) -> Matrixf32
     {
+        debug_assert!({
+            if direction.is_x() {
+                true
+            }
+            else {
+                self.dimensions()[0] == other.dimensions()[0]
+            }
+        });
+        debug_assert!({
+            if direction.is_y() {
+                true
+            }
+            else {
+                self.dimensions()[1] == other.dimensions()[1]
+            }
+        });
+        debug_assert!({
+            if direction.is_z() {
+                true
+            }
+            else {
+                self.dimensions()[2] == other.dimensions()[2]
+            }
+        });
+        debug_assert!({
+            if direction.is_w() {
+                true
+            }
+            else {
+                self.dimensions()[3] == other.dimensions()[3]
+            }
+        });
+
         let dim_index = direction.to_index() as usize;
         let mut result_dims = [
             max(self.xyzw[0], other.xyzw[0]),
@@ -574,7 +625,7 @@ impl Matrixf32 {
                 indices[2].len() as u32,
                 indices[3].len() as u32,
             ],
-            0.
+            0.,
         );
 
         let kernel = PROQUE
@@ -703,6 +754,8 @@ impl Matrixf32 {
         other: &Self,
     ) -> MatrixBool
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -732,6 +785,8 @@ impl Matrixf32 {
         other: &Self,
     ) -> MatrixBool
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -761,6 +816,8 @@ impl Matrixf32 {
         other: &Self,
     ) -> MatrixBool
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -790,6 +847,8 @@ impl Matrixf32 {
         other: &Self,
     ) -> MatrixBool
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -819,6 +878,8 @@ impl Matrixf32 {
         other: &Self,
     ) -> MatrixBool
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -848,6 +909,8 @@ impl Matrixf32 {
         other: &Self,
     ) -> MatrixBool
     {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
         let result_dims = [
             min(self.dimensions()[0], other.dimensions()[0]),
             min(self.dimensions()[1], other.dimensions()[1]),
@@ -894,6 +957,11 @@ impl Matrixf32 {
         other: &Matrixf32,
     ) -> Matrixf32
     {
+        debug_assert!(
+            *self.dimensions() == *other.dimensions()
+                && *self.dimensions() == *cond.dimensions()
+        );
+
         let result_dims = [
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[0]),
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[1]),
@@ -922,12 +990,21 @@ impl Matrixf32 {
     pub fn sum_along(
         &self,
         dimensions: [bool; 4],
-    ) -> Matrixf32 {
+    ) -> Matrixf32
+    {
         use self::Dimension as D;
 
-        let real_dim_iter = dimensions.iter()
+        let real_dim_iter = dimensions
+            .iter()
             .zip([D::X, D::Y, D::Z, D::W].into_iter())
-            .filter_map(|(bul, dim)| if *bul { Some(dim) } else { None });
+            .filter_map(|(bul, dim)| {
+                if *bul {
+                    Some(dim)
+                }
+                else {
+                    None
+                }
+            });
 
         let mut working_matrix = self.copy();
 
@@ -941,7 +1018,8 @@ impl Matrixf32 {
             // all else makes x
             let cur_dim = if dim.is_y() {
                 D::Y
-            } else {
+            }
+            else {
                 D::X
             };
 
@@ -955,7 +1033,10 @@ impl Matrixf32 {
                     working_matrix.dimensions()[2],
                     working_matrix.dimensions()[3],
                 ]
-            } else /* if cur_dim.is_y() */ {
+            }
+            else
+            /* if cur_dim.is_y() */
+            {
                 [
                     working_matrix.dimensions()[1],
                     1,
@@ -970,7 +1051,10 @@ impl Matrixf32 {
             // multiply the matrix with the one_matrix
             working_matrix = if dim.is_x() {
                 working_matrix.matrix_mul(&one_matrix)
-            } else /* if cur_dim.is_y() */ {
+            }
+            else
+            /* if cur_dim.is_y() */
+            {
                 one_matrix.matrix_mul(&working_matrix)
             };
 
