@@ -76,6 +76,12 @@ impl Dimension {
             _ => false,
         }
     }
+
+    pub fn iterable() -> &'static [Self; 4] {
+        use self::Dimension::*;
+
+        &[X, Y, Z, W]
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -94,6 +100,10 @@ lazy_static! {
 
 fn area(dims: &[u32; 4]) -> u32 {
     dims[0] * dims[1] * dims[2] * dims[3]
+}
+
+fn dims_to_uint4(dims: &[u32; 4]) -> Uint4 {
+    Uint4::new(dims[0], dims[1], dims[2], dims[3])
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +194,7 @@ impl Matrixf32 {
             .build()
             .unwrap();
 
-        let meta = Uint4::new(dims[0], dims[1], dims[2], dims[3]);
+        let meta = dims_to_uint4(&dims);
 
         Matrixf32 {
             xyzw: dims,
@@ -206,7 +216,7 @@ impl Matrixf32 {
             .build()
             .unwrap();
 
-        let meta = Uint4::new(dims[0], dims[1], dims[2], dims[3]);
+        let meta = dims_to_uint4(&dims);
 
         Matrixf32 {
             xyzw: dims,
@@ -992,79 +1002,176 @@ impl Matrixf32 {
         dimensions: [bool; 4],
     ) -> Matrixf32
     {
-        use self::Dimension as D;
+        let mut working_matrix = None;
+        let mut working_dims = None;
 
-        let real_dim_iter = dimensions
-            .iter()
-            .zip([D::X, D::Y, D::Z, D::W].into_iter())
-            .filter_map(|(bul, dim)| {
-                if *bul {
-                    Some(dim)
+        for (flag, dim) in
+            dimensions.into_iter().zip(Dimension::iterable().iter())
+        {
+            if *flag {
+                let mut new_dims = self.dimensions().clone();
+                new_dims[dim.to_index() as usize] = 1;
+                let mut new_area = area(&new_dims);
+
+                let destination = PROQUE
+                    .buffer_builder::<f32>()
+                    .len(new_area)
+                    .fill_val(0.)
+                    .build()
+                    .unwrap();
+
+                {
+                    let ref_matrix =
+                        working_matrix.as_ref().unwrap_or(&self.matrix);
+                    let ref_dims =
+                        working_dims.as_ref().unwrap_or(self.dimensions());
+                    let ref_meta = dims_to_uint4(ref_dims);
+
+                    let kernel = PROQUE
+                        .kernel_builder("sum_along")
+                        .arg(ref_matrix)
+                        .arg(ref_meta)
+                        .arg(dim.to_index())
+                        .arg(&destination)
+                        .build()
+                        .unwrap();
+
+                    unsafe {
+                        kernel.enq().unwrap();
+                    }
+
+                    // ref_matrix and ref_meta are dropped here, borrows are
+                    // released
                 }
-                else {
-                    None
-                }
-            });
 
-        let mut working_matrix = self.copy();
-
-        for dim in real_dim_iter {
-            // transpose to x for a while
-            if dim.is_z() || dim.is_w() {
-                working_matrix = working_matrix.transpose(D::X, *dim);
-            }
-
-            // since y is the only one not affected, let y remain y
-            // all else makes x
-            let cur_dim = if dim.is_y() {
-                D::Y
-            }
-            else {
-                D::X
-            };
-
-            // create the dimensions of the matrix which the current working
-            // matrix will multiply with.
-            // this will simulate an addition over a specific dimension
-            let one_dims = if cur_dim.is_x() {
-                [
-                    1,
-                    working_matrix.dimensions()[0],
-                    working_matrix.dimensions()[2],
-                    working_matrix.dimensions()[3],
-                ]
-            }
-            else
-            /* if cur_dim.is_y() */
-            {
-                [
-                    working_matrix.dimensions()[1],
-                    1,
-                    working_matrix.dimensions()[2],
-                    working_matrix.dimensions()[3],
-                ]
-            };
-
-            // create the matrix given the dimensions
-            let one_matrix = Matrixf32::new_fill(one_dims, 1.);
-
-            // multiply the matrix with the one_matrix
-            working_matrix = if dim.is_x() {
-                working_matrix.matrix_mul(&one_matrix)
-            }
-            else
-            /* if cur_dim.is_y() */
-            {
-                one_matrix.matrix_mul(&working_matrix)
-            };
-
-            // undo the transposition
-            if dim.is_z() || dim.is_w() {
-                working_matrix = working_matrix.transpose(D::X, *dim);
+                working_matrix = Some(destination);
+                working_dims = Some(new_dims);
             }
         }
 
         working_matrix
+            .map(|wm| unsafe {
+                Matrixf32::from_raw_parts(working_dims.unwrap(), wm)
+            })
+            .unwrap_or_else(|| self.copy())
+    }
+
+    pub fn max_along(
+        &self,
+        dimensions: [bool; 4],
+    ) -> Matrixf32
+    {
+        let mut working_matrix = None;
+        let mut working_dims = None;
+
+        for (flag, dim) in
+            dimensions.into_iter().zip(Dimension::iterable().iter())
+        {
+            if *flag {
+                let mut new_dims = self.dimensions().clone();
+                new_dims[dim.to_index() as usize] = 1;
+                let mut new_area = area(&new_dims);
+
+                let destination = PROQUE
+                    .buffer_builder::<f32>()
+                    .len(new_area)
+                    .fill_val(0.)
+                    .build()
+                    .unwrap();
+
+                {
+                    let ref_matrix =
+                        working_matrix.as_ref().unwrap_or(&self.matrix);
+                    let ref_dims =
+                        working_dims.as_ref().unwrap_or(self.dimensions());
+                    let ref_meta = dims_to_uint4(ref_dims);
+
+                    let kernel = PROQUE
+                        .kernel_builder("max_along")
+                        .arg(ref_matrix)
+                        .arg(ref_meta)
+                        .arg(dim.to_index())
+                        .arg(&destination)
+                        .build()
+                        .unwrap();
+
+                    unsafe {
+                        kernel.enq().unwrap();
+                    }
+
+                    // ref_matrix and ref_meta are dropped here, borrows are
+                    // released
+                }
+
+                working_matrix = Some(destination);
+                working_dims = Some(new_dims);
+            }
+        }
+
+        working_matrix
+            .map(|wm| unsafe {
+                Matrixf32::from_raw_parts(working_dims.unwrap(), wm)
+            })
+            .unwrap_or_else(|| self.copy())
+    }
+
+    pub fn min_along(
+        &self,
+        dimensions: [bool; 4],
+    ) -> Matrixf32
+    {
+        let mut working_matrix = None;
+        let mut working_dims = None;
+
+        for (flag, dim) in
+            dimensions.into_iter().zip(Dimension::iterable().iter())
+        {
+            if *flag {
+                let mut new_dims = self.dimensions().clone();
+                new_dims[dim.to_index() as usize] = 1;
+                let mut new_area = area(&new_dims);
+
+                let destination = PROQUE
+                    .buffer_builder::<f32>()
+                    .len(new_area)
+                    .fill_val(0.)
+                    .build()
+                    .unwrap();
+
+                {
+                    let ref_matrix =
+                        working_matrix.as_ref().unwrap_or(&self.matrix);
+                    let ref_dims =
+                        working_dims.as_ref().unwrap_or(self.dimensions());
+                    let ref_meta = dims_to_uint4(ref_dims);
+
+                    let kernel = PROQUE
+                        .kernel_builder("min_along")
+                        .arg(ref_matrix)
+                        .arg(ref_meta)
+                        .arg(dim.to_index())
+                        .arg(&destination)
+                        .build()
+                        .unwrap();
+
+                    unsafe {
+                        kernel.enq().unwrap();
+                    }
+
+                    // ref_matrix and ref_meta are dropped here, borrows are
+                    // released
+                }
+
+                working_matrix = Some(destination);
+                working_dims = Some(new_dims);
+            }
+        }
+
+        working_matrix
+            .map(|wm| unsafe {
+                Matrixf32::from_raw_parts(working_dims.unwrap(), wm)
+            })
+            .unwrap_or_else(|| self.copy())
     }
 
     /*

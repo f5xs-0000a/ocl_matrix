@@ -877,6 +877,142 @@ if_else_eq(
 kernel void
 sum_along(
     global float* src_buffer,
+    uint4 src_meta,
+    uint sum_direction,
+    global float* dest_buffer
+) {
+    uint4 dest_dims = src_meta;
+    dest_dims[sum_direction] = 1;
+
+    uint array_length = get_area(&dest_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_length,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = (invoc_offset + invoc_loop_index) % array_length;
+        uint4 cur_coords = get_coords(cur_invoc_index, &dest_dims);
+
+        float sum = 0;
+
+        for (
+             uint i = 0;
+             i < src_meta[sum_direction];
+             i += 1
+        ) {
+            uint4 coords = cur_coords;
+            coords[sum_direction] = i;
+            uint index = get_index(&coords, &src_meta);
+
+            sum += src_buffer[index];
+        }
+
+        dest_buffer[cur_invoc_index] = sum;
+    }
+}
+
+kernel void
+max_along(
+    global float* src_buffer,
+    uint4 src_meta,
+    uint max_direction,
+    global float* dest_buffer
+) {
+    uint4 dest_dims = src_meta;
+    dest_dims[max_direction] = 1;
+
+    uint array_length = get_area(&dest_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_length,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = (invoc_offset + invoc_loop_index) % array_length;
+        uint4 cur_coords = get_coords(cur_invoc_index, &dest_dims);
+
+        float maximum = -MAXFLOAT;
+
+        for (
+             uint i = 0;
+             i < src_meta[max_direction];
+             i += 1
+        ) {
+            uint4 coords = cur_coords;
+            coords[max_direction] = i;
+            uint index = get_index(&coords, &src_meta);
+
+            maximum = max(src_buffer[index], maximum);
+        }
+
+        dest_buffer[cur_invoc_index] = maximum;
+    }
+}
+
+kernel void
+min_along(
+    global float* src_buffer,
+    uint4 src_meta,
+    uint min_direction,
+    global float* dest_buffer
+) {
+    uint4 dest_dims = src_meta;
+    dest_dims[min_direction] = 1;
+
+    uint array_length = get_area(&dest_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_length,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = (invoc_offset + invoc_loop_index) % array_length;
+        uint4 cur_coords = get_coords(cur_invoc_index, &dest_dims);
+
+        float minimum = MAXFLOAT;
+
+        for (
+             uint i = 0;
+             i < src_meta[min_direction];
+             i += 1
+        ) {
+            uint4 coords = cur_coords;
+            coords[min_direction] = i;
+            uint index = get_index(&coords, &src_meta);
+
+            minimum = min(src_buffer[index], minimum);
+        }
+
+        dest_buffer[cur_invoc_index] = minimum;
+    }
+}
+
+/*
+kernel void
+sum_along(
+    global float* src_buffer,
     uint4 intermediate_meta,
     global bool sum_flags[4],
     global float* intermediate,
@@ -1002,3 +1138,4 @@ sum_along(
         }
     }
 }
+*/
