@@ -1009,7 +1009,11 @@ impl Matrixf32 {
             dimensions.into_iter().zip(Dimension::iterable().iter())
         {
             if *flag {
-                let mut new_dims = self.dimensions().clone();
+                let mut new_dims = working_dims
+                    .as_ref()
+                    .map(|wd: &[u32; 4]| wd.clone())
+                    .unwrap_or_else(|| self.dimensions().clone());
+                new_dims[dim.to_index() as usize] = 1;
                 new_dims[dim.to_index() as usize] = 1;
                 let new_area = area(&new_dims);
 
@@ -1068,7 +1072,10 @@ impl Matrixf32 {
             dimensions.into_iter().zip(Dimension::iterable().iter())
         {
             if *flag {
-                let mut new_dims = self.dimensions().clone();
+                let mut new_dims = working_dims
+                    .as_ref()
+                    .map(|wd: &[u32; 4]| wd.clone())
+                    .unwrap_or_else(|| self.dimensions().clone());
                 new_dims[dim.to_index() as usize] = 1;
                 let new_area = area(&new_dims);
 
@@ -1127,7 +1134,10 @@ impl Matrixf32 {
             dimensions.into_iter().zip(Dimension::iterable().iter())
         {
             if *flag {
-                let mut new_dims = self.dimensions().clone();
+                let mut new_dims = working_dims
+                    .as_ref()
+                    .map(|wd: &[u32; 4]| wd.clone())
+                    .unwrap_or_else(|| self.dimensions().clone());
                 new_dims[dim.to_index() as usize] = 1;
                 let new_area = area(&new_dims);
 
