@@ -1011,7 +1011,7 @@ impl Matrixf32 {
             if *flag {
                 let mut new_dims = self.dimensions().clone();
                 new_dims[dim.to_index() as usize] = 1;
-                let mut new_area = area(&new_dims);
+                let new_area = area(&new_dims);
 
                 let destination = PROQUE
                     .buffer_builder::<f32>()
@@ -1070,7 +1070,7 @@ impl Matrixf32 {
             if *flag {
                 let mut new_dims = self.dimensions().clone();
                 new_dims[dim.to_index() as usize] = 1;
-                let mut new_area = area(&new_dims);
+                let new_area = area(&new_dims);
 
                 let destination = PROQUE
                     .buffer_builder::<f32>()
@@ -1129,7 +1129,7 @@ impl Matrixf32 {
             if *flag {
                 let mut new_dims = self.dimensions().clone();
                 new_dims[dim.to_index() as usize] = 1;
-                let mut new_area = area(&new_dims);
+                let new_area = area(&new_dims);
 
                 let destination = PROQUE
                     .buffer_builder::<f32>()
