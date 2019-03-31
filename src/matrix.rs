@@ -91,7 +91,7 @@ lazy_static! {
         let src = include_str!("opencl.cl");
 
         println!("Building OpenCL file...");
-        let proque = ProQue::builder().src(src).dims(65536).build().unwrap();
+        let proque = ProQue::builder().src(src).dims(512).build().unwrap();
         println!("OpenCL file built.");
 
         proque
@@ -974,9 +974,9 @@ impl Matrixf32 {
 
         let result_dims = [
             min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[0]),
-            min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[1]),
-            min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[2]),
-            min(min(self.xyzw[0], cond.xyzw[0]), other.xyzw[3]),
+            min(min(self.xyzw[1], cond.xyzw[1]), other.xyzw[1]),
+            min(min(self.xyzw[2], cond.xyzw[2]), other.xyzw[2]),
+            min(min(self.xyzw[3], cond.xyzw[3]), other.xyzw[3]),
         ];
         let result = Matrixf32::new_fill(result_dims, 0.);
 
@@ -1279,6 +1279,10 @@ pub struct MatrixBool {
 }
 
 impl MatrixBool {
+    pub unsafe fn get_buffer(&self) -> &Buffer<bool32> {
+        &self.matrix
+    }
+
     pub fn dimensions<'a>(&'a self) -> &'a [u32; 4] {
         &self.xyzw
     }

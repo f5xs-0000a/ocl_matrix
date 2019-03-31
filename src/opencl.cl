@@ -856,9 +856,9 @@ if_else_eq(
     );
 
     for (
-         uint invoc_loop_index = 0;
-         invoc_loop_index < invoc_workable_mem;
-         invoc_loop_index += 1
+        uint invoc_loop_index = 0;
+        invoc_loop_index < invoc_workable_mem;
+        invoc_loop_index += 1
     ) {
         uint cur_invoc_index = (invoc_offset + invoc_loop_index) % array_len;
         uint4 cur_coords = get_coords(cur_invoc_index, &common_dims);
@@ -867,10 +867,13 @@ if_else_eq(
         uint else_index = get_index(&cur_coords, &else_meta);
         uint cond_index = get_index(&cur_coords, &cond_meta);
 
-        result_buffer[cur_invoc_index] =
-            cond_buffer[cond_index] ?
-            if_index[if_buffer] :
-            else_index[else_buffer];
+        if (cond_buffer[cond_index]) {
+            result_buffer[cur_invoc_index] = if_buffer[if_index];
+        }
+
+        else {
+            result_buffer[cur_invoc_index] = else_buffer[else_index];
+        }
     }
 }
 
