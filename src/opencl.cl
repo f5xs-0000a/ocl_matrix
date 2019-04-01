@@ -1382,7 +1382,7 @@ kernel void bool_retain_indices(
     global uint* y_indices,
     global uint* z_indices,
     global uint* w_indices,
-    global float* dest_buffer,
+    global bool* dest_buffer,
     uint4 dest_meta
 ) {
     uint array_len = get_area(&dest_meta);
