@@ -1142,3 +1142,235 @@ sum_along(
     }
 }
 */
+
+////////////////////////////////////////////////////////////////////////////////
+
+kernel void
+and_eq(
+    global bool* opeq_buffer,
+    uint4 opeq_meta,
+    global bool* opand_buffer,
+    uint4 opand_meta
+) {
+    uint4 common_dims = min_dims(&opeq_meta, &opand_meta);
+    uint array_len = get_area(&common_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            uint4 coords = get_coords(cur_invoc_index, &common_dims);
+            uint opeq_index = get_index(&coords, &opeq_meta);
+            uint opand_index = get_index(&coords, &opand_meta);
+
+            opeq_buffer[opeq_index] =
+                opeq_buffer[opeq_index] && opand_buffer[opand_index];
+        }
+    }
+}
+
+kernel void
+or_eq(
+    global bool* opeq_buffer,
+    uint4 opeq_meta,
+    global bool* opand_buffer,
+    uint4 opand_meta
+) {
+    uint4 common_dims = min_dims(&opeq_meta, &opand_meta);
+    uint array_len = get_area(&common_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            uint4 coords = get_coords(cur_invoc_index, &common_dims);
+            uint opeq_index = get_index(&coords, &opeq_meta);
+            uint opand_index = get_index(&coords, &opand_meta);
+
+            opeq_buffer[opeq_index] =
+                opeq_buffer[opeq_index] || opand_buffer[opand_index];
+        }
+    }
+}
+
+kernel void
+xor_eq(
+    global bool* opeq_buffer,
+    uint4 opeq_meta,
+    global bool* opand_buffer,
+    uint4 opand_meta
+) {
+    uint4 common_dims = min_dims(&opeq_meta, &opand_meta);
+    uint array_len = get_area(&common_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            uint4 coords = get_coords(cur_invoc_index, &common_dims);
+            uint opeq_index = get_index(&coords, &opeq_meta);
+            uint opand_index = get_index(&coords, &opand_meta);
+
+            opeq_buffer[opeq_index] =
+                opeq_buffer[opeq_index] != opand_buffer[opand_index];
+        }
+    }
+}
+
+kernel void
+nand_eq(
+    global bool* opeq_buffer,
+    uint4 opeq_meta,
+    global bool* opand_buffer,
+    uint4 opand_meta
+) {
+    uint4 common_dims = min_dims(&opeq_meta, &opand_meta);
+    uint array_len = get_area(&common_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            uint4 coords = get_coords(cur_invoc_index, &common_dims);
+            uint opeq_index = get_index(&coords, &opeq_meta);
+            uint opand_index = get_index(&coords, &opand_meta);
+
+            opeq_buffer[opeq_index] =
+                !(opeq_buffer[opeq_index] && opand_buffer[opand_index]);
+        }
+    }
+}
+
+kernel void
+nor_eq(
+    global bool* opeq_buffer,
+    uint4 opeq_meta,
+    global bool* opand_buffer,
+    uint4 opand_meta
+) {
+    uint4 common_dims = min_dims(&opeq_meta, &opand_meta);
+    uint array_len = get_area(&common_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            uint4 coords = get_coords(cur_invoc_index, &common_dims);
+            uint opeq_index = get_index(&coords, &opeq_meta);
+            uint opand_index = get_index(&coords, &opand_meta);
+
+            opeq_buffer[opeq_index] =
+                !(opeq_buffer[opeq_index] || opand_buffer[opand_index]);
+        }
+    }
+}
+
+kernel void
+xnor_eq(
+    global bool* opeq_buffer,
+    uint4 opeq_meta,
+    global bool* opand_buffer,
+    uint4 opand_meta
+) {
+    uint4 common_dims = min_dims(&opeq_meta, &opand_meta);
+    uint array_len = get_area(&common_dims);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            uint4 coords = get_coords(cur_invoc_index, &common_dims);
+            uint opeq_index = get_index(&coords, &opeq_meta);
+            uint opand_index = get_index(&coords, &opand_meta);
+
+            opeq_buffer[opeq_index] =
+                opeq_buffer[opeq_index] == opand_buffer[opand_index];
+        }
+    }
+}
+
+kernel void
+not_eq(
+    global bool* src_buffer,
+    uint area
+) {
+    uint array_len = area;
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        uint cur_invoc_index = invoc_offset + invoc_loop_index;
+        if (cur_invoc_index < array_len) {
+            src_buffer[cur_invoc_index] = !src_buffer[cur_invoc_index];
+        }
+    }
+}

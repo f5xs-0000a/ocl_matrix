@@ -1370,4 +1370,123 @@ impl MatrixBool {
     pub fn f(dims: [u32; 4]) -> MatrixBool {
         MatrixBool::new(dims, repeat(bool32::f()))
     }
+
+    pub fn and_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("and_eq")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
+
+    pub fn or_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("or_eq")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
+
+    pub fn xor_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("xor_eq")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
+
+    pub fn nand_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("nand_eq")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
+
+    pub fn nor_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("nor_eq")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
+
+    pub fn xnor_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("xnor_eq")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
+
+    pub fn not_eq(self, other: &MatrixBool) -> MatrixBool {
+        debug_assert_eq!(*self.dimensions(), *other.dimensions());
+
+        let kernel = PROQUE
+            .kernel_builder("not_eq")
+            .arg(&self.matrix)
+            .arg(self.area())
+            .arg(&other.matrix)
+            .arg(&other.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        self
+    }
 }
