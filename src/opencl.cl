@@ -528,7 +528,7 @@ kernel void extend(
     }
 }
 
-kernel void retain_indices(
+kernel void f32_retain_indices(
     global float* src_buffer,
     uint4 src_meta,
     global uint* x_indices,
@@ -1372,5 +1372,45 @@ not_eq(
         if (cur_invoc_index < array_len) {
             src_buffer[cur_invoc_index] = !src_buffer[cur_invoc_index];
         }
+    }
+}
+
+kernel void bool_retain_indices(
+    global bool* src_buffer,
+    uint4 src_meta,
+    global uint* x_indices,
+    global uint* y_indices,
+    global uint* z_indices,
+    global uint* w_indices,
+    global float* dest_buffer,
+    uint4 dest_meta
+) {
+    uint array_len = get_area(&dest_meta);
+    uint invoc_workable_mem;
+    uint invoc_offset;
+    get_workable_mem_and_offset(
+        array_len,
+        &invoc_workable_mem,
+        &invoc_offset
+    );
+
+    // perform copy from base to result
+    for (
+         uint invoc_loop_index = 0;
+         invoc_loop_index < invoc_workable_mem;
+         invoc_loop_index += 1
+    ) {
+        // get the current inex
+        uint dest_index = (invoc_offset + invoc_loop_index) % array_len;
+        uint4 dest_coords = get_coords(dest_index, &dest_meta);
+
+        uint4 src_coords;
+        src_coords[0] = x_indices[dest_coords[0]];
+        src_coords[1] = y_indices[dest_coords[1]];
+        src_coords[2] = z_indices[dest_coords[2]];
+        src_coords[3] = w_indices[dest_coords[3]];
+
+        uint src_index = get_index(&src_coords, &src_meta);
+        dest_buffer[dest_index] = src_buffer[src_index];
     }
 }

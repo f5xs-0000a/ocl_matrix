@@ -639,7 +639,7 @@ impl Matrixf32 {
         );
 
         let kernel = PROQUE
-            .kernel_builder("retain_indices")
+            .kernel_builder("f32_retain_indices")
             .arg(&self.matrix)
             .arg(&self.meta)
             .arg(&x_buffer)
@@ -690,7 +690,7 @@ impl Matrixf32 {
     }
 
     pub fn remove_indices(
-        self,
+        &self,
         mut indices: [Vec<u32>; 4],
     ) -> Matrixf32
     {
@@ -1474,8 +1474,6 @@ impl MatrixBool {
     }
 
     pub fn not_eq(self) -> MatrixBool {
-        debug_assert_eq!(*self.dimensions(), *other.dimensions());
-
         let kernel = PROQUE
             .kernel_builder("not_eq")
             .arg(&self.matrix)
@@ -1486,5 +1484,128 @@ impl MatrixBool {
         unsafe { kernel.enq().unwrap() }
 
         self
+    }
+
+    fn retain_indices_inner(
+        &self,
+        indices: [Vec<u32>; 4],
+    ) -> MatrixBool
+    {
+        fn vec_to_buffer(vec: &[u32]) -> Buffer<u32> {
+            PROQUE
+                .buffer_builder::<u32>()
+                .len(vec.len())
+                .copy_host_slice(vec)
+                .build()
+                .unwrap()
+        }
+
+        let x_buffer = vec_to_buffer(&indices[0]);
+        let y_buffer = vec_to_buffer(&indices[1]);
+        let z_buffer = vec_to_buffer(&indices[2]);
+        let w_buffer = vec_to_buffer(&indices[3]);
+
+        let dest = MatrixBool::f(
+            [
+                indices[0].len() as u32,
+                indices[1].len() as u32,
+                indices[2].len() as u32,
+                indices[3].len() as u32,
+            ],
+        );
+
+        let kernel = PROQUE
+            .kernel_builder("bool_retain_indices")
+            .arg(&self.matrix)
+            .arg(&self.meta)
+            .arg(&x_buffer)
+            .arg(&y_buffer)
+            .arg(&z_buffer)
+            .arg(&w_buffer)
+            .arg(&dest.matrix)
+            .arg(&dest.meta)
+            .build()
+            .unwrap();
+
+        unsafe { kernel.enq().unwrap() }
+
+        dest
+    }
+
+    /// Retains the indices in the matrix from the provided argument.
+    ///
+    /// This method does not retain indices that are outside of bounds.
+    ///
+    /// You can also retain an index multiple times. The said index will then
+    /// appear multiple times.
+    ///
+    /// You can also reorder indices with this method.
+    ///
+    /// However, if you placed indices that are outside of bounds before an
+    /// index that is within bounds, the index within bounds will take the place
+    /// of the index that is outside of bounds, returning you with a matrix with
+    /// an n-area less than expected.
+    pub fn retain_indices(
+        &self,
+        mut xyzw: [Option<Vec<u32>>; 4],
+    ) -> MatrixBool
+    {
+        let mut retain_indices = <[Vec<u32>; 4]>::default();
+
+        for idx in 0 .. 4 {
+            if let Some(mut dimvec) = xyzw[idx].take() {
+                dimvec.retain(|x| *x < self.xyzw[idx]);
+                retain_indices[idx] = dimvec;
+            }
+            else {
+                retain_indices[idx] = (0 .. self.xyzw[idx]).collect();
+            }
+        }
+
+        self.retain_indices_inner(retain_indices)
+    }
+
+    pub fn remove_indices(
+        &self,
+        mut indices: [Vec<u32>; 4],
+    ) -> MatrixBool
+    {
+        let mut retain_indices = <[Vec<u32>; 4]>::default();
+
+        for idx in 0 .. 4 {
+            indices[idx].retain(|x| *x < self.xyzw[idx]);
+            indices[idx].sort_unstable();
+            indices[idx].dedup();
+
+            retain_indices[idx] = (0 .. self.xyzw[idx])
+                // TODO: you know, iterating through both of them would probably
+                // be faster but, you know, I'm in a hurry. premature
+                // optimization shouldn't be my thing
+                .filter(|i| indices[idx].binary_search(i).is_err())
+                .collect();
+        }
+
+        self.retain_indices_inner(retain_indices)
+    }
+
+    pub fn repeat_along(
+        &self,
+        repeat: [u32; 4],
+    ) -> MatrixBool
+    {
+        // TODO: in the future, we should create a dedicated shader for this
+        // since that is more efficient. However, we have time restraints so
+        // we make do with what we have.
+
+        let mut retain_indices = <[Vec<u32>; 4]>::default();
+
+        for idx in 0 .. 4 {
+            retain_indices[idx] = repeat_with(|| (0 .. self.xyzw[idx]))
+                .take(repeat[idx] as usize)
+                .flat_map(|iter| iter)
+                .collect();
+        }
+
+        self.retain_indices_inner(retain_indices)
     }
 }
