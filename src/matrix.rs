@@ -1473,15 +1473,13 @@ impl MatrixBool {
         self
     }
 
-    pub fn not_eq(self, other: &MatrixBool) -> MatrixBool {
+    pub fn not_eq(self) -> MatrixBool {
         debug_assert_eq!(*self.dimensions(), *other.dimensions());
 
         let kernel = PROQUE
             .kernel_builder("not_eq")
             .arg(&self.matrix)
             .arg(self.area())
-            .arg(&other.matrix)
-            .arg(&other.meta)
             .build()
             .unwrap();
 
